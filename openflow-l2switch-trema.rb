@@ -26,7 +26,7 @@ class L2Switch < Trema::Controller
     else
       @mactable[ macsa ] = { :mac => macsa, :port_number => in_port }
     end
- 
+
     # 宛先MACアドレスの出力ポートをMACテーブルから取得し、パケット出力
     if @mactable[ macda ]
       # 出力ポートを指定して、パケット出力
