@@ -1,11 +1,13 @@
 class L2Switch < Trema::Controller
 
   def start
-    @fdb = FDB.new
+    # MACテーブル初期化
+    @mactable = {}
   end
 
   def packet_in datapath_id, message
 
+    # OpenFlow のフロー追加
     #send_flow_mod_add(
     #  datapath_id,
     #  :idle_timeout => 10,
@@ -14,18 +16,38 @@ class L2Switch < Trema::Controller
     #  :actions => Trema::ActionOutput.new( OFPP_FLOOD )
     #)
 
-    @fdb.learn message.macsa, message.in_port
-    out_port = @fdb.lookup (message.macda)
+    macsa   = message.macsa
+    macda   = message.macda
+    in_port = message.in_port
 
-    if out_port
-      packet_out datapath_id, message, out_port
+    # MACテーブルの更新/追加
+    if @mactable[ macsa ]
+      @mactable[ macsa ][ :port_number ] = in_port
     else
+      @mactable[ macsa ] = { :mac => macsa, :port_number => in_port }
+    end
+ 
+    # 宛先MACアドレスの出力ポートをMACテーブルから取得し、パケット出力
+    if @mactable[ macda ]
+      # 出力ポートを指定して、パケット出力
+      packet_out datapath_id, message, @mactable[ macda ][ :port_number ]
+    else
+      # 全ポートにフラッディング
       packet_out datapath_id, message, OFPP_FLOOD
     end
   end
 
+
   def packet_out datapath_id, message, out_port
-    puts "in_port: #{message.in_port} out_port: #{out_port} source_mac: #{message.macsa}  destination_mac: #{message.macda}"
+
+    # debug 用
+    if out_port == OFPP_FLOOD
+      printf "in_port: %6d  out_port:  FLOOD  source_mac: %s  destination_mac: %s\n", message.in_port, message.macsa, message.macda
+    else
+      printf "in_port: %6d  out_port: %6d  source_mac: %s  destination_mac: %s\n", message.in_port, out_port, message.macsa, message.macda
+    end
+
+    # 出力
     send_packet_out(
       datapath_id,
       :packet_in => message,
@@ -33,28 +55,4 @@ class L2Switch < Trema::Controller
     )
   end
 
-end
-
-class FDB
-  def initialize
-    @db = {}
-  end
-
-
-  def lookup mac
-    if @db[ mac ]
-      @db[ mac ][ :port_number ]
-    else
-      nil
-    end
-  end
-
-
-  def learn mac, port_number
-    if @db[ mac ]
-      @db[ mac ][ :port_number ] = port_number
-    else
-      @db[ mac ] = { :mac => mac, :port_number => port_number }
-    end
-  end
 end
