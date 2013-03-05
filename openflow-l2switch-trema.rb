@@ -1,8 +1,15 @@
+require 'pp'
+
 class L2Switch < Trema::Controller
 
   def start
     # MACテーブル初期化
     @mactable = {}
+  end
+
+  def switch_ready datapath_id
+    switch_id = sprintf("%#x", datapath_id)
+    puts "Connected Switch: #{switch_id}"
   end
 
   def packet_in datapath_id, message
